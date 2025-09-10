@@ -1,0 +1,227 @@
+Count and Percentage:
+---------------------
+SELECT channel, COUNT (CASE WHEN label = 1 THEN 1 END) AS commercials_count, COUNT(*) AS total_shots, 
+(COUNT (CASE WHEN label = 1 THEN 1 END) / COUNT(*)) * 100 AS commercials_percentage FROM (
+SELECT 'BBC' AS channel, label FROM bbc_commercials
+UNION ALL
+SELECT 'CNN', label FROM cnn_commercials
+UNION ALL
+SELECT 'CNNIBN', label FROM cnnibn_commercials
+UNION ALL
+SELECT 'NDTV', label FROM ndtv_commercials
+UNION ALL
+SELECT 'TIMESNOW', label FROM timesnow_commercials) AS channel_data
+
+GROUP BY channel;
+
+average shot length:
+--------------------
+SELECT 'BBC' AS channel, label, AVG(Shot_Length) AS avg_shot_length
+FROM bbc_commercials GROUP BY label
+UNION ALL
+SELECT 'CNN', label, AVG(Shot_Length)
+FROM con_commercials GROUP BY label
+UNION ALL
+SELECT 'CNNIBN', label, AVG(Shot_Length)
+FROM cnnibn_commercials GROUP BY label
+UNION ALL
+SELECT 'NDTV', label, AVG(Shot_Length)
+FROM ndtv_commercials GROUP BY label
+UNION ALL
+SELECT 'TIMESNOW', label, AVG(Shot_Length)
+FROM timesnow_commercials GROUP BY label;
+
+motion distribution:
+--------------------
+commercials:
+------------
+SELECT 'BBC' AS Channel, AVG(Motion_Distribution_Mean) AS Avg_Motion_Distribution_Mean
+FROM bbc_commercials
+WHERE label = 1
+UNION ALL
+SELECT 'CNN' AS Channel, AVG(Motion_Distribution_Mean)
+FROM cnn_commercials
+WHERE label = 1
+UNION ALL
+SELECT 'CNNIBN AS Channel, AVG(Motion_Distribution_Mean)
+FROM cnnibn_commercials
+WHERE label = 1
+UNION ALL
+SELECT 'NDTV' AS Channel, AVG (Motion_Distribution_Mean)
+FROM ndtv_commercials
+WHERE label = 1
+UNION ALL
+SELECT 'TIMESNOW AS Channel, AVG (Motion_Distribution_Mean)
+FROM timesnow_commercials
+WHERE label = 1;
+
+non commercials:
+----------------
+SELECT 'BBC' AS Channel, AVG(Motion_Distribution_Mean) AS Avg_Motion_Distribution_Mean
+FROM bbc_commercials
+WHERE label = -1
+UNION ALL
+SELECT 'CNN' AS Channel, AVG(Motion_Distribution_Mean)
+FROM cnn_commercials
+WHERE label = -1
+UNION ALL
+SELECT 'CNNIBN AS Channel, AVG(Motion_Distribution_Mean)
+FROM cnnibn_commercials
+WHERE label = -1
+UNION ALL
+SELECT 'NDTV' AS Channel, AVG (Motion_Distribution_Mean)
+FROM ndtv_commercials
+WHERE label = -1
+UNION ALL
+SELECT 'TIMESNOW AS Channel, AVG (Motion_Distribution_Mean)
+FROM timesnow_commercials
+WHERE label = -1;
+
+-----------------------------------------------------------
+SELECT label, AVG(Motion_Distribution_Mean) AS avg_motion, AVG(Motion_Distribution_Variance) AS var_motion
+FROM timesnow_commercials
+GROUP BY label;
+-----------------------------------------------------------
+
+load motion distribution data:
+------------------------------
+INSERT OVERWRITE DIRECTORY '/Project/bbc_motion_dist.txt'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY','
+SELECT Motion_Distribution_Mean
+FROM bbc_commercials
+WHERE label = 1;
+
+R:
+---
+commercials_bbc <- read.csv("C:/Users/HP/Downloads/bbc_com_motion_dist.csv", header FALSE) non_commercials_bbc <- read.csv("C:/Users/HP/Downloads/bbc_ncom_motion_dist.csv", header = FALSE) colnames (commercials_bbc) <- c("Motion_Distribution Mean")
+colnames (non_commercials_bbc) <- c("Motion_Distribution_Mean")
+par (mfrow = c(1, 2))
+hist(
+commercials_bbc$Motion_Distribution_Mean,
+main "BBC Commercials", xlab "Motion Distribution Mean",
+col = "blue",
+border "black",
+breaks 30
+)
+hist( non_commercials_bbc$Motion_Distribution_Mean, main "BBC Non-Commercials".
+xlab "Motion Distribution Mean",
+col = "red",
+border = "black",
+breaks = 30
+)
+
+-----------------------------------------
+Edge change ratio:
+------------------
+SELECT
+CASE
+WHEN label 1 THEN 'Commercials'
+ELSE 'Non-Commercials'
+END AS Category,
+AVG(Edge_Change_Ratio_Mean) AS Avg_Edge_Change_Ratio,
+COUNT(*) AS Count
+FROM (
+SELECT label, Edge_Change_Ratio_Mean FROM bbc_commercials
+UNION ALL
+SELECT label, Edge_Change_Ratio_Mean FROM cnn_commercials
+UNION ALL
+SELECT label, Edge_Change_Ratio_Mean FROM cnnibn_commercials
+UNION ALL
+SELECT label, Edge Change Ratio Mean FROM ndtv_commercials
+UNION ALL
+SELECT label, Edge_Change_Ratio_Mean FROM timesnow_commercials
+) AS combined data
+GROUP BY label;
+
+Spectral features:
+---------------------
+SELECT label, AVG(Spectral_Centroid_Mean), AVG(Spectral_Roll_Off_Mean), AVG(Spectral_Flux_Mean) FROM bbc_commercials GROUP BY label;
+
+
+--------------------
+INSERT OVERWRITE DIRECTORY '/Project/tv_commercials.csv'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY','
+SELECT FROM bbc_commercials
+UNION ALL
+SELECT FROM cnn_commercials
+UNION ALL
+SELECT FROM cnnibn_commercials
+UNION ALL
+SELECT FROM ndtv_commercials
+UNION ALL
+SELECT FROM timesnow_commercials;
+----------------------------------------
+R:
+----
+tv_commercials <- read.csv('C:/Users/HP/Downloads/tv_commercials.csv')
+duplicates <- tv_commercials [duplicated(tv_commercials), ] print(nrow (duplicates))
+print(nrow (duplicates))
+tv_commercials <- unique(tv_commercials)
+
+------------------------------------
+
+tv_commercials <- unique(tv_commercials)
+boxplot(tv_commercials[, -1], main = "Boxplot of Features", las = 2)
+library(ggplot2)
+
+numeric_columns <- names(tv_commercials)[sapply(tv_commercials, is.numeric)]
+for (col in numeric_columns) {
+boxplot(tv_commercials[[col]], main = paste("Boxplot of", col),
+ylab = col, col = "lightblue", border = "black")
+}
+
+remove_outliers <- function(x) {
+Q1 <- quantile(x, 0.25)
+Q3 <- quantile(x, 0.75)
+IQR <- Q3 - Q1
+x[x < (Q1 1.5 * IQR) | x > (Q3 + 1.5 * IQR)] <- ΝΑ
+return (x)
+}
+
+tv_commercials_clean <- tv_commercials %>% mutate (across (where(is.numeric),
+remove_outliers)) %>% na.omit()
+-------------------------------------
+cor_matrix <- cor(tv_commercials[, -1], use "complete.obs")
+corrplot(cor_matrix, method = "circle", tl.cex = 0.7)
+threshold <- 0.8
+high_corr_indices <- which(abs(cor_matrix) > threshold, arr.ind = TRUE) high_corr_indices <- high_corr_indices [high_corr_indices[, 1] != high_corr_indices[, 2], ]
+high_corr_features <- data.frame (Feature1 = rownames(cor_matrix) [high_corr_indices[, 1]], Feature2 = colnames(cor_matrix) [high_corr_indices[, 2]],
+Correlation = cor_matrix[high_corr_indices])
+print(high_corr_features)
+
+pheatmap (cor_matrix,
+clustering_distance_rows = "euclidean",
+clustering_distance_cols = "euclidean",
+clustering_method = "complete",
+display_numbers = TRUE,
+number_format = "%.2f",
+fontsize_number = 8,
+fontsize_row = 10,
+fontsize_col = 10,
+main = "Correlation Heatmap")
+
+cor_matrix <- cor(tv_commercials, 1], use = "complete.obs")corrplot(cor_matrix, method = "circle", tl.cex = 0.7)
+
+features_to_remove <- c("Spectral_Flux_Variance", "Short_Time_Energy_Mean", "Spectral_Roll_off_Mean", "Fundamental_Frequency_Mean", "Spectral_Centroid_Variance")
+tv_commercials_clean <- tv_commercials_clean %>% select(-all_of(features_to_remove))
+
+rf_model <- randomForest(label ., data = tv_commercials_clean, importance = TRUE)
+importance <- importance(rf_model)
+varImpPlot(rf_model)
+----------------------------------------
+[1] "Short_Time_Energy_Variance"      
+ [2] "Frame_Diff_Distribution_Mean"    
+ [3] "Motion_Distribution_Variance"    
+ [4] "Frame_Diff_Distribution_Variance"
+ [5] "Motion_Distribution_Mean"        
+ [6] "ZCR_Mean"                        
+ [7] "Spectral_Roll_Off_Variance"      
+ [8] "Spectral_Flux_Mean"              
+ [9] "ZCR_Variance"                    
+[10] "Fundamental_Frequency_Variance"  
+[11] "Spectral_Centroid_Mean"          
+[12] "Shot_Length"                     
+[13] "Edge_Change_Ratio_Mean"          
+[14] "Edge_Change_Ratio_Variance" 
